@@ -7,17 +7,17 @@
   
   <title>经典的cuda工作流程 | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="回顾经典的三流程：1  数据拷贝，从cpu到gpu2  在gpu中调用核函数3  gpu求出结果传送回cpu 具体流程范例：123456789101112131415161718192021void sumArraysOnHost(float *A, float *B,float *C, const int N)&amp;#123;//核函数    int i = blockIdx.x * blockDi">
+  <meta name="description" content="回顾经典的三流程：1  数据拷贝，从cpu到gpu2  在gpu中调用核函数3  gpu求出结果传送回cpu">
 <meta property="og:type" content="article">
 <meta property="og:title" content="经典的cuda工作流程">
 <meta property="og:url" content="http://yoursite.com/2019/03/28/hidavid/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="回顾经典的三流程：1  数据拷贝，从cpu到gpu2  在gpu中调用核函数3  gpu求出结果传送回cpu 具体流程范例：123456789101112131415161718192021void sumArraysOnHost(float *A, float *B,float *C, const int N)&amp;#123;//核函数    int i = blockIdx.x * blockDi">
+<meta property="og:description" content="回顾经典的三流程：1  数据拷贝，从cpu到gpu2  在gpu中调用核函数3  gpu求出结果传送回cpu">
 <meta property="og:locale" content="default">
-<meta property="og:updated_time" content="2019-03-28T01:20:43.093Z">
+<meta property="og:updated_time" content="2019-03-28T01:28:30.008Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="经典的cuda工作流程">
-<meta name="twitter:description" content="回顾经典的三流程：1  数据拷贝，从cpu到gpu2  在gpu中调用核函数3  gpu求出结果传送回cpu 具体流程范例：123456789101112131415161718192021void sumArraysOnHost(float *A, float *B,float *C, const int N)&amp;#123;//核函数    int i = blockIdx.x * blockDi">
+<meta name="twitter:description" content="回顾经典的三流程：1  数据拷贝，从cpu到gpu2  在gpu中调用核函数3  gpu求出结果传送回cpu">
   
     <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
   
@@ -87,6 +87,7 @@
     <div class="article-entry" itemprop="articleBody">
       
         <h2 id="回顾经典的三流程："><a href="#回顾经典的三流程：" class="headerlink" title="回顾经典的三流程："></a>回顾经典的三流程：</h2><p>1  数据拷贝，从cpu到gpu<br>2  在gpu中调用核函数<br>3  gpu求出结果传送回cpu</p>
+<a id="more"></a>
 <h3 id="具体流程范例："><a href="#具体流程范例：" class="headerlink" title="具体流程范例："></a>具体流程范例：</h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">sumArraysOnHost</span><span class="params">(<span class="keyword">float</span> *A, <span class="keyword">float</span> *B,<span class="keyword">float</span> *C, <span class="keyword">const</span> <span class="keyword">int</span> N)</span></span></span><br><span class="line"><span class="function"></span>&#123;<span class="comment">//核函数</span></span><br><span class="line">    <span class="keyword">int</span> i = blockIdx.x * blockDim.x + threadIdx.x;</span><br><span class="line">    <span class="keyword">if</span> (i &lt; N) C[i] = A[i] + B[i];</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//然后在main函数中</span></span><br><span class="line"><span class="comment">// set up data size of vectors</span></span><br><span class="line"><span class="keyword">int</span> nElem = <span class="number">1</span> &lt;&lt; <span class="number">24</span>;</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">"Vector size %d\n"</span>, nElem);</span><br><span class="line"><span class="comment">// 申请cpu处理的内存</span></span><br><span class="line"><span class="keyword">size_t</span> nBytes = nElem * <span class="keyword">sizeof</span>(<span class="keyword">float</span>);</span><br><span class="line"><span class="keyword">float</span> *h_A, *h_B, *hostRef, *gpuRef;</span><br><span class="line">h_A = (<span class="keyword">float</span> *)<span class="built_in">malloc</span>(nBytes);</span><br><span class="line">h_B = (<span class="keyword">float</span> *)<span class="built_in">malloc</span>(nBytes);</span><br><span class="line">hostRef = (<span class="keyword">float</span> *)<span class="built_in">malloc</span>(nBytes);<span class="comment">//这里的hostRef用来存储cpu计算的结果</span></span><br><span class="line">gpuRef = (<span class="keyword">float</span> *)<span class="built_in">malloc</span>(nBytes);</span><br><span class="line"><span class="comment">// 申请显存</span></span><br><span class="line"><span class="keyword">float</span> *d_A, *d_B, *d_C;</span><br><span class="line">CHECK(cudaMalloc((<span class="keyword">float</span>**)&amp;d_A, nBytes));</span><br><span class="line">CHECK(cudaMalloc((<span class="keyword">float</span>**)&amp;d_B, nBytes));</span><br><span class="line">CHECK(cudaMalloc((<span class="keyword">float</span>**)&amp;d_C, nBytes));</span><br></pre></td></tr></table></figure>
 <ul>
 <li>关于malloc，(a)malloc(b), a处是表示强制类型转换，即将分配的空间类型转换成之前定义得同一类型。</li>
@@ -98,7 +99,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2019/03/28/hidavid/" data-id="cjtrycyzv0000zkprczyssrmb" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2019/03/28/hidavid/" data-id="cjtryhs940001n4prpo7pvwa4" class="article-share-link">Share</a>
       
       
     </footer>
@@ -108,9 +109,9 @@
 <nav id="article-nav">
   
   
-    <a href="/2019/03/21/postName/" id="article-nav-older" class="article-nav-link-wrap">
+    <a href="/2019/03/21/hello-world/" id="article-nav-older" class="article-nav-link-wrap">
       <strong class="article-nav-caption">Older</strong>
-      <div class="article-nav-title">postName</div>
+      <div class="article-nav-title">Hello World</div>
     </a>
   
 </nav>
@@ -148,10 +149,6 @@
         
           <li>
             <a href="/2019/03/28/hidavid/">经典的cuda工作流程</a>
-          </li>
-        
-          <li>
-            <a href="/2019/03/21/postName/">postName</a>
           </li>
         
           <li>
